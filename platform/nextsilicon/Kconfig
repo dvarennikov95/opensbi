@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
+#
+# All mandatory drivers or libraries for this platform should
+# be directly selected by the PLATFORM_xyz kconfig symbol.
+#
+# All optional drivers or libraries for this platform should
+# be enabled via configs/defconfig of this platform.
+#
+config PLATFORM_NEXTSILICON_SCR7
+	bool
+	select SERIAL_UART8250
+	select IRQCHIP_PLIC
+	select TIMER_MTIMER
+	default y

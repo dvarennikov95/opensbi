@@ -797,7 +797,7 @@ _trap_exit_rv32_hyp:
 _reset_regs:
 
 	/* flush the instruction cache */
-	fence.i
+	/* fence.i */
 	/* Reset all registers except ra, a0, a1 and a2 */
 	li sp, 0
 	li gp, 0

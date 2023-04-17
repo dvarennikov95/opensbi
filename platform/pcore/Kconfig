@@ -1,0 +1,3 @@
+config PLATFORM_NEXTSILICON_PCORE_SCR7_GEN1
+	bool
+	default y

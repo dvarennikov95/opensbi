@@ -25,6 +25,22 @@
  * As a w/a start count from 32 to avoid changing orig implementation.
 */
 #define PLATFORM_HART_COUNT 33 // allow boot only for scr7 core 0 (hartid=32)
+
+// sram log ring
+#define PLATFORM_LOG_RING_SIZE 0x1000
+#define PLATFORM_LOG_RING_END_ADDRESS 0xffff8ffff8200000
+#define SCR7_TEST_PRINT "\x1b[96m[SCR7 opensbi] init done.\n"
+
+// fundtions 
+static void *ns_memcpy(void *dst, const void *src, uint32_t count);
+
+// Structs
+struct platform_log_ring {
+    uint32_t rsvd_lock;
+    uint32_t head;
+    char log[PLATFORM_LOG_RING_SIZE];
+};
+
 /*
  * Platform early initialization.
  */
@@ -46,6 +62,13 @@ static int platform_early_init(bool cold_boot)
  */
 static int platform_final_init(bool cold_boot)
 {
+	// init done print to SRAM
+	struct platform_log_ring *ring = (struct platform_log_ring *)(PLATFORM_LOG_RING_END_ADDRESS - PLATFORM_LOG_RING_SIZE - sizeof(uint32_t) - sizeof(uint32_t));
+	ring->head = 0;
+	const char test_print[]  = SCR7_TEST_PRINT;
+	ns_memcpy(ring->log, test_print, sizeof(test_print));
+	ring->head = sizeof(test_print);
+
 	return 0;
 }
 
@@ -102,3 +125,31 @@ const struct sbi_platform platform = {
 	.hart_stack_size	= SBI_PLATFORM_DEFAULT_HART_STACK_SIZE,
 	.platform_ops_addr	= (unsigned long)&platform_ops
 };
+
+static void *ns_memcpy(void *dst, const void *src, uint32_t count)
+{
+    char *tmp1 = dst;
+    const char *tmp2 = src;
+
+#define DO_UINT(type)                                                                              \
+    if (count >= sizeof(type) && !((uintptr_t)tmp1 % sizeof(type)) &&                              \
+        !((uintptr_t)tmp2 % sizeof(type))) {                                                       \
+        *(type *)tmp1 = *(type *)tmp2;                                                             \
+        tmp1 += sizeof(type);                                                                      \
+        tmp2 += sizeof(type);                                                                      \
+        count -= sizeof(type);                                                                     \
+        continue;                                                                                  \
+    }
+
+    while (count > 0) {
+        DO_UINT(__uint128_t)
+        DO_UINT(uint64_t)
+        DO_UINT(uint32_t)
+        DO_UINT(uint16_t)
+        DO_UINT(uint8_t)
+    }
+
+#undef DO_UINT
+
+    return dst;
+}

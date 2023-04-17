@@ -430,6 +430,8 @@
 #define CSR_MARCHID			0xf12
 #define CSR_MIMPID			0xf13
 #define CSR_MHARTID			0xf14
+#define MHART4_H 0xFFFF8FFF 
+#define MHART4_L 0xE0400030
 
 /* Machine Trap Setup */
 #define CSR_MSTATUS			0x300

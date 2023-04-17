@@ -436,6 +436,14 @@ _start_warm:
 	lw	s8, SBI_PLATFORM_HART_STACK_SIZE_OFFSET(a4)
 #endif
 	REG_L	s9, SBI_PLATFORM_HART_INDEX2ID_OFFSET(a4)
+	
+	call	_stop_dbg
+	/* Read HART id from cluster control reg MHART4*/
+	li	 t0, MHART4_H
+	slli t0, t0, 0x20
+	li	 t1, MHART4_L
+	or   t1, t1, t0
+	lw   s6, (t1)
 
 	/* Find HART id */
 	csrr	s6, CSR_MHARTID
@@ -783,6 +791,12 @@ _trap_exit_rv32_hyp:
 
 	mret
 #endif
+
+	.section .entry, "ax", %progbits
+	.align 3
+	.globl __stop_dbg
+_stop_dbg:
+	ret 
 
 	.section .entry, "ax", %progbits
 	.align 3

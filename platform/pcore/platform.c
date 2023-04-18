@@ -26,6 +26,12 @@
 */
 #define PLATFORM_HART_COUNT 33 // allow boot only for scr7 core 0 (hartid=32)
 
+// platform memory regions 
+#define PLATFORM_SRAM_REGION_INDEX 0
+#define PLATFORM_SRAM_BASE 0xFFFF8FFFF8000000ULL
+#define PLATFORM_SRAM_SIZE 0x200000
+#define PLATFORM_SRAM_BANKSIZE 0x80000
+
 // sram log ring
 #define PLATFORM_LOG_RING_SIZE 0x1000
 #define PLATFORM_LOG_RING_END_ADDRESS 0xffff8ffff8200000
@@ -41,6 +47,13 @@ struct platform_log_ring {
     char log[PLATFORM_LOG_RING_SIZE];
 };
 
+static const struct {
+	unsigned long base, size, align, flags;
+} platform_memory_regions[] = {
+	{ PLATFORM_SRAM_BASE, PLATFORM_SRAM_SIZE, PLATFORM_SRAM_BANKSIZE,
+		SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE},
+};
+
 /*
  * Platform early initialization.
  */
@@ -54,7 +67,13 @@ static int platform_very_early_init()
  */
 static int platform_early_init(bool cold_boot)
 {
-	return 0;
+	int ret = 0;
+	// add SRAM memory regions
+	ret = sbi_domain_root_add_memrange(platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].base,
+									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].size,
+									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].align,
+									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].flags);
+	return ret;
 }
 
 /*

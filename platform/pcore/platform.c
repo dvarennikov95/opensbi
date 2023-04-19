@@ -28,7 +28,6 @@
 #define PLATFORM_HART_COUNT 33 // allow boot only for scr7 core 0 (hartid=32)
 
 // platform memory regions 
-#define PLATFORM_SRAM_REGION_INDEX 0
 #define PLATFORM_SRAM_BASE 0xFFFF8FFFF8000000ULL
 #define PLATFORM_SRAM_SIZE 0x200000
 #define PLATFORM_SRAM_BANKSIZE 0x80000
@@ -47,6 +46,15 @@
 #define MTIMER_CMP_SIZE (MTIMER_SIZE - MTIMER_CMP_OFFSET)
 #define MTIMER_CSR_MTIME_ADDR (0xBFF)
 #define MTIMER_CSR_CMP_ADDR (0x7C0)
+
+/* UART1 */
+#define UART1_BASE_ADDR (0xffff8fffe0218000)
+#define UART1_SIZE (0x1000)
+#define UART1_FLAGS (SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE | SBI_DOMAIN_MEMREGION_MMIO)
+#define UART1_FREQ (50000000)
+#define UART1_BAUD (115200)
+#define UART1_REG_SHIFT (2)
+#define UART1_REG_WIDTH (4)
 
 // sram log ring
 #define PLATFORM_LOG_RING_SIZE 0x1000
@@ -68,6 +76,7 @@ static const struct {
 } platform_memory_regions[] = {
 	{ PLATFORM_SRAM_BASE, PLATFORM_SRAM_SIZE, PLATFORM_SRAM_BANKSIZE,
 		SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE},
+    { UART1_BASE_ADDR, UART1_SIZE, UART1_SIZE, UART1_FLAGS},
 };
 
 static struct aclint_mtimer_data mtimer = {
@@ -92,15 +101,21 @@ static int platform_very_early_init()
 /*
  * Platform early initialization.
  */
-static int platform_early_init(bool cold_boot)
+static int nxt_early_init(bool cold_boot)
 {
 	int ret = 0;
-	// add SRAM memory regions
-	ret = sbi_domain_root_add_memrange(platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].base,
-									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].size,
-									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].align,
-									   platform_memory_regions[PLATFORM_SRAM_REGION_INDEX].flags);
-	return ret;
+
+	for (unsigned int i = 0; i < array_size(platform_memory_regions); i++)
+    {
+        ret = sbi_domain_root_add_memrange(platform_memory_regions[i].base,
+									       platform_memory_regions[i].size,
+									       platform_memory_regions[i].align,
+									       platform_memory_regions[i].flags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /*
@@ -122,15 +137,20 @@ static int platform_final_init(bool cold_boot)
     time = sbi_timer_value();
     sbi_printf("%s: %d Timer test, end time: \n", __func__, time);
 
+	sbi_puts("******************Hello from ABRA!*************************\n");
 	return 0;
 }
 
 /*
  * Initialize the platform console.
  */
-static int platform_console_init(void)
+static int nxt_console_init(void)
 {
-	return 0;
+	return uart8250_init(UART1_BASE_ADDR,
+			     UART1_FREQ,
+			     UART1_BAUD,
+			     UART1_REG_SHIFT,
+			     UART1_REG_WIDTH, 0);
 }
 
 /*
@@ -171,13 +191,14 @@ static int platform_timer_init(bool cold_boot)
  */
 const struct sbi_platform_operations platform_ops = {
 	.nascent_init   = platform_very_early_init,
-	.early_init		= platform_early_init,
+	.early_init		= nxt_early_init,
 	.final_init		= platform_final_init,
-	.console_init		= platform_console_init,
+	.console_init	= nxt_console_init,
 	.irqchip_init		= platform_irqchip_init,
 	.ipi_init		= platform_ipi_init,
 	.timer_init		= platform_timer_init,
 };
+
 const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,
 	.platform_version	= SBI_PLATFORM_VERSION(0x07, 0x00),

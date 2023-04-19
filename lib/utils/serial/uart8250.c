@@ -124,10 +124,6 @@ int uart8250_init(unsigned long base, u32 in_freq, u32 baudrate, u32 reg_shift,
 	set_reg(UART_FCR_OFFSET, 0x01);
 	/* No modem control DTR RTS */
 	set_reg(UART_MCR_OFFSET, 0x00);
-	/* Clear line status */
-	get_reg(UART_LSR_OFFSET);
-	/* Read receive buffer */
-	get_reg(UART_RBR_OFFSET);
 	/* Set scratchpad */
 	set_reg(UART_SCR_OFFSET, 0x00);
 

@@ -41,6 +41,21 @@ struct platform_log_ring {
     char log[PLATFORM_LOG_RING_SIZE];
 };
 
+/* UART1 */
+#define UART1_BASE_ADDR (0xffff8fffe0218000)
+#define UART1_SIZE (0x1000)
+#define UART1_FLAGS (SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE | SBI_DOMAIN_MEMREGION_MMIO)
+#define UART1_FREQ (50000000)
+#define UART1_BAUD (115200)
+#define UART1_REG_SHIFT (2)
+#define UART1_REG_WIDTH (4)
+
+static const struct {
+	unsigned long base, size, flags;
+} platform_memory_regions[] = {
+	{ UART1_BASE_ADDR, UART1_SIZE, UART1_FLAGS },
+};
+
 /*
  * Platform early initialization.
  */
@@ -52,8 +67,22 @@ static int platform_very_early_init()
 /*
  * Platform early initialization.
  */
-static int platform_early_init(bool cold_boot)
+static int nxt_early_init(bool cold_boot)
 {
+	struct sbi_domain_memregion region;
+	int ret;
+
+	for (unsigned int i = 0; i < array_size(platform_memory_regions); i++) {
+		sbi_domain_memregion_init(platform_memory_regions[i].base,
+					  platform_memory_regions[i].size,
+					  platform_memory_regions[i].flags,
+					  &region);
+
+		ret = sbi_domain_root_add_memregion(&region);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -69,15 +98,20 @@ static int platform_final_init(bool cold_boot)
 	ns_memcpy(ring->log, test_print, sizeof(test_print));
 	ring->head = sizeof(test_print);
 
+	sbi_puts("******************Hello from ABRA!*************************\n");
 	return 0;
 }
 
 /*
  * Initialize the platform console.
  */
-static int platform_console_init(void)
+static int nxt_console_init(void)
 {
-	return 0;
+	return uart8250_init(UART1_BASE_ADDR,
+			     UART1_FREQ,
+			     UART1_BAUD,
+			     UART1_REG_SHIFT,
+			     UART1_REG_WIDTH, 0);
 }
 
 /*
@@ -109,13 +143,14 @@ static int platform_timer_init(bool cold_boot)
  */
 const struct sbi_platform_operations platform_ops = {
 	.nascent_init   = platform_very_early_init,
-	.early_init		= platform_early_init,
+	.early_init		= nxt_early_init,
 	.final_init		= platform_final_init,
-	.console_init		= platform_console_init,
+	.console_init	= nxt_console_init,
 	.irqchip_init		= platform_irqchip_init,
 	.ipi_init		= platform_ipi_init,
 	.timer_init		= platform_timer_init,
 };
+
 const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,
 	.platform_version	= SBI_PLATFORM_VERSION(0x07, 0x00),

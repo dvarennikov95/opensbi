@@ -306,8 +306,8 @@ struct sbi_trap_regs *sbi_trap_handler(struct sbi_trap_regs *regs)
 		break;
 	case CAUSE_LOAD_ACCESS:
 	case CAUSE_STORE_ACCESS:
-		sbi_pmu_ctr_incr_fw(mcause == CAUSE_LOAD_ACCESS ?
-			SBI_PMU_FW_ACCESS_LOAD : SBI_PMU_FW_ACCESS_STORE);
+		rc = sbi_pmu_ctr_incr_fw(mcause == CAUSE_LOAD_ACCESS ?
+			SBI_PMU_FW_ACCESS_LOAD : SBI_PMU_FW_ACCESS_STORE); // w/a just to test timer , dont redirect since we dont have s/u modes yet
 		/* fallthrough */
 	default:
 		/* If the trap came from S or U mode, redirect it there */

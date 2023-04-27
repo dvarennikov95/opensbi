@@ -50,6 +50,42 @@ struct platform_log_ring {
 #define UART1_REG_SHIFT (2)
 #define UART1_REG_WIDTH (4)
 
+// MPU section
+#define CSR_MPU_SELECT 			(0xBC4)
+#define CSR_MPU_CONTROL 		(0xBC5)
+#define CSR_MPU_ADDRESS			(0xBC6)
+#define CSR_MPU_MASK 			(0xBC7)
+#define CSR_MEM_CTRL_GLOBAL		(0xBD4)
+#define HBM_REGION_ADDR      	(0x000000)
+#define HBM_REGION_CFG_MASK  	(0xFFFFFFFFFFF00000ULL)
+
+#define SCR_MPU_CTRL_VALID          (1 << 0)  // Current entry is enabled
+#define SCR_MPU_CTRL_MR             (1 << 1)  // M-Mode reads are permitted
+#define SCR_MPU_CTRL_MW             (1 << 2)  // M-Mode writes are permitted
+#define SCR_MPU_CTRL_MX             (1 << 3)  // M-Mode execution is permitted
+#define SCR_MPU_CTRL_UR             (1 << 4)  // U-Mode reads are permitted
+#define SCR_MPU_CTRL_UW             (1 << 5)  // U-Mode writes are permitted
+#define SCR_MPU_CTRL_UX             (1 << 6)  // U-Mode execution is permitted
+#define SCR_MPU_CTRL_SR             (1 << 7)  // S-Mode reads are permitted
+#define SCR_MPU_CTRL_SW             (1 << 8)  // S-Mode writes are permitted
+#define SCR_MPU_CTRL_SX             (1 << 9)  // S-Mode execution is permitted
+#define SCR_MPU_CTRL_MT_MASK        (3 << 16) // Unused
+#define SCR_MPU_CTRL_MT_WEAKLY      (0 << 16) // 17..16 Cacheable, weakly-ordered
+#define SCR_MPU_CTRL_MT_STRONG      (1 << 16) // 17..16 Non-cacheable, strong-ordered
+#define SCR_MPU_CTRL_MT_WEAKLY_NC   (2 << 16) // 17..16 Non-cacheable, weakly-ordered
+#define SCR_MPU_CTRL_MMIO	        (3 << 16) // 17..16 CPU configuration memory-mapped I/O, noncacheable, strong-ordered
+#define SCR_MPU_CTRL_LOCK           (1 << 31) // Current entry is locked
+#define SCR_MPU_CTRL_MA             (SCR_MPU_CTRL_MR | SCR_MPU_CTRL_MW | SCR_MPU_CTRL_MX)
+#define SCR_MPU_CTRL_SA             (SCR_MPU_CTRL_SR | SCR_MPU_CTRL_SW | SCR_MPU_CTRL_SX)
+#define SCR_MPU_CTRL_UA             (SCR_MPU_CTRL_UR | SCR_MPU_CTRL_UW | SCR_MPU_CTRL_UX)
+#define SCR_MPU_CTRL_ALL            (SCR_MPU_CTRL_MA | SCR_MPU_CTRL_SA | SCR_MPU_CTRL_UA)
+#define MEM_CTRL_GLOBAL_BIT_L1IC_ENA 	(1 << 0)
+#define MEM_CTRL_GLOBAL_BIT_L1DC_ENA	(1 << 1)
+#define MEM_CTRL_GLOBAL_BIT_L1IC_FLUSH	(1 << 2)
+#define MEM_CTRL_GLOBAL_BIT_L1DC_FLUSH	(1 << 3)
+#define MEM_CTRL_GLOBAL_L1C_ENA_BM (MEM_CTRL_GLOBAL_BIT_L1IC_ENA | MEM_CTRL_GLOBAL_BIT_L1DC_ENA)
+#define MEM_CTRL_GLOBAL_L1C_FLUSH_BM (MEM_CTRL_GLOBAL_BIT_L1IC_FLUSH | MEM_CTRL_GLOBAL_BIT_L1DC_FLUSH)
+
 static const struct {
 	unsigned long base, size, flags;
 } platform_memory_regions[] = {
@@ -82,6 +118,21 @@ static int nxt_early_init(bool cold_boot)
 		if (ret)
 			return ret;
 	}
+
+	// Default region
+	csr_write(CSR_MPU_SELECT,0);
+	csr_write(CSR_MPU_CONTROL,(SCR_MPU_CTRL_MT_STRONG | SCR_MPU_CTRL_ALL | SCR_MPU_CTRL_VALID));
+	
+	// HBM region
+	csr_write(CSR_MPU_SELECT,1);
+	csr_write(CSR_MPU_CONTROL,0);
+	csr_write(CSR_MPU_ADDRESS,(HBM_REGION_ADDR >> 2));
+	csr_write(CSR_MPU_MASK,(HBM_REGION_CFG_MASK >> 2));
+	csr_write(CSR_MPU_CONTROL,(SCR_MPU_CTRL_MT_STRONG | SCR_MPU_CTRL_ALL | SCR_MPU_CTRL_VALID));
+
+	// Last region
+	csr_write(CSR_MPU_SELECT,2);
+	csr_write(CSR_MPU_CONTROL,0);
 
 	return 0;
 }

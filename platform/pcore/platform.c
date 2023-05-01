@@ -19,7 +19,12 @@
  */
 #include <sbi/sbi_console.h>
 
-#define PLATFORM_HART_COUNT 4
+/*
+ * Cluster control register MHART4 (0xFFFF8FFFE0400030) holds MHARTID for SCR7 cores.
+ * Opensbi implementation is using CSR_MHARTID register which starts from 32 for CORE0
+ * As a w/a start count from 32 to avoid changing orig implementation.
+*/
+#define PLATFORM_HART_COUNT 33 // allow boot only for scr7 core 0 (hartid=32)
 /*
  * Platform early initialization.
  */

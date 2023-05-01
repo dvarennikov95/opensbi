@@ -16,6 +16,7 @@
 
 #define BOOT_STATUS_RELOCATE_DONE	1
 #define BOOT_STATUS_BOOT_HART_DONE	2
+#define USE_MHART4_INSTEAD_OF_CSR_MHARTID	0
 
 .macro	MOV_3R __d0, __s0, __d1, __s1, __d2, __s2
 	add	\__d0, \__s0, zero
@@ -437,8 +438,19 @@ _start_warm:
 #endif
 	REG_L	s9, SBI_PLATFORM_HART_INDEX2ID_OFFSET(a4)
 
+#if USE_MHART4_INSTEAD_OF_CSR_MHARTID
+	call	_stop_dbg
+	/* Read HART id from cluster control reg MHART4*/
+	li	 t0, MHART4_H
+	slli t0, t0, 0x20
+	li	 t1, MHART4_L
+	or   t1, t1, t0
+	lw   s6, (t1)
+#else
 	/* Find HART id */
 	csrr	s6, CSR_MHARTID
+#endif
+
 
 	/* Find HART index */
 	beqz	s9, 3f
@@ -782,6 +794,14 @@ _trap_exit_rv32_hyp:
 	TRAP_RESTORE_A0_T0
 
 	mret
+#endif
+
+#if USE_MHART4_INSTEAD_OF_CSR_MHARTID
+	.section .entry, "ax", %progbits
+	.align 3
+	.globl __stop_dbg
+_stop_dbg:
+	ret 
 #endif
 
 	.section .entry, "ax", %progbits

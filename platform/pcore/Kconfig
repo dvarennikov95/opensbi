@@ -1,3 +1,4 @@
 config PLATFORM_NEXTSILICON_PCORE_SCR7_GEN1
 	bool
+	select SERIAL_UART8250
 	default y

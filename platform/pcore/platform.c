@@ -43,6 +43,13 @@
 /* UART1 */
 #define UART1_REGION_BASE_ADDR  (0xFFFF8FFFe0218000ULL)
 #define UART1_REGION_CFG_MASK   (0xFFFFFFFFFFFFF000ULL)
+#define UART1_REGION_SIZE 	    (0x1000)
+#define UART1_REGION_FLAGS 		(SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE | SBI_DOMAIN_MEMREGION_MMIO)
+#define UART1_FREQ 			    (50000000)
+#define UART1_BAUD 			    (115200)
+#define UART1_REG_SHIFT 		(2)
+#define UART1_REG_WIDTH 		(4)
+
 /* MTIMER */
 #define MTIMER_REGION_BASE_ADDR (0xFFFF8FFFE8000000ULL) // Timer, non cacheable (4 KB)
 #define MTIMER_REGION_CFG_MASK  (0xFFFFFFFFFFFFF000ULL)
@@ -109,6 +116,7 @@ static const struct {
 	unsigned long base, size, align, flags;
 } platform_memory_regions[] = {
 	{ SHMEM_REGION_ADDR, SHMEM_REGION_SIZE, SHMEM_REGION_BANKSIZE, SHMEM_REGION_FLAGS},
+    { UART1_REGION_BASE_ADDR, UART1_REGION_SIZE, UART1_REGION_SIZE, UART1_REGION_FLAGS},
 };
 
 #pragma GCC push_options
@@ -209,15 +217,21 @@ static int nxt_final_init(bool cold_boot)
 	const char test_print[]  = SCR7_TEST_PRINT;    
 	ns_memcpy(ring->log, test_print, sizeof(test_print));
 	ring->head = sizeof(test_print);
+	//test print to console
+	sbi_puts("******************Hello from ABRA!*************************\n");
 	return 0;
 }
 
 /*
  * Initialize the platform console.
  */
-static int platform_console_init(void)
+static int nxt_console_init(void)
 {
-	return 0;
+	return uart8250_init(UART1_REGION_BASE_ADDR,
+			     UART1_FREQ,
+			     UART1_BAUD,
+			     UART1_REG_SHIFT,
+			     UART1_REG_WIDTH, 0);
 }
 
 /*
@@ -251,7 +265,7 @@ const struct sbi_platform_operations platform_ops = {
 	.nascent_init   = nxt_very_early_init,
 	.early_init		= nxt_early_init,
 	.final_init		= nxt_final_init,
-	.console_init		= platform_console_init,
+	.console_init	= nxt_console_init,
 	.irqchip_init		= platform_irqchip_init,
 	.ipi_init		= platform_ipi_init,
 	.timer_init		= platform_timer_init,

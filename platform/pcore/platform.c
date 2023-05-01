@@ -12,6 +12,7 @@
 #include <sbi/sbi_timer.h>
 #include <sbi_utils/serial/uart8250.h>
 #include <sbi_utils/irqchip/plic.h>
+#include <sbi_utils/timer/aclint_mtimer.h>
 
 /*
  * Include these files as needed.
@@ -53,6 +54,18 @@
 /* MTIMER */
 #define MTIMER_REGION_BASE_ADDR (0xFFFF8FFFE8000000ULL) // Timer, non cacheable (4 KB)
 #define MTIMER_REGION_CFG_MASK  (0xFFFFFFFFFFFFF000ULL)
+#define MTIMER_REGION_SIZE 		(0x1000)
+#define MTIMER_FREQ 			(50000000)
+#define MTIMER_MTIME_OFFSET     (0x8)
+#define MTIMER_MTIME_ADDR 		(MTIMER_REGION_BASE_ADDR + MTIMER_MTIME_OFFSET)
+#define MTIMER_MTIME_SIZE 		(0x8)
+#define MTIMER_CMP_OFFSET 		(0x10)
+#define MTIMER_CMP_ADDR 		(MTIMER_REGION_BASE_ADDR + MTIMER_CMP_OFFSET)
+#define MTIMER_CMP_SIZE 		(MTIMER_REGION_SIZE - MTIMER_CMP_OFFSET)
+#define MTIMER_CSR_MTIME_ADDR 	(0xBFF)
+#define MTIMER_CSR_CMP_ADDR 	(0x7C0)
+#define MTIMER_MMODE_DEBUG_TEST (0)
+
 /* SRAM (SHMEM) */
 #define SHMEM_REGION_ADDR  		(0xFFFF8FFFF8000000ULL) // Shared memory (4 KB)
 #define SHMEM_REGION_MASK 		(0xFFFFFFFFFFFFF000ULL) 
@@ -104,6 +117,9 @@
 
 // fundtions 
 static void *ns_memcpy(void *dst, const void *src, uint32_t count);
+#if MTIMER_MMODE_DEBUG_TEST
+static void platform_timer_test();
+#endif
 
 // Structs
 struct platform_log_ring {
@@ -117,6 +133,17 @@ static const struct {
 } platform_memory_regions[] = {
 	{ SHMEM_REGION_ADDR, SHMEM_REGION_SIZE, SHMEM_REGION_BANKSIZE, SHMEM_REGION_FLAGS},
     { UART1_REGION_BASE_ADDR, UART1_REGION_SIZE, UART1_REGION_SIZE, UART1_REGION_FLAGS},
+};
+
+static struct aclint_mtimer_data mtimer = {
+	.mtime_freq = MTIMER_FREQ,
+	.mtime_addr = MTIMER_MTIME_ADDR,
+	.mtime_size = MTIMER_MTIME_SIZE,
+	.mtimecmp_addr = MTIMER_CMP_ADDR,
+	.mtimecmp_size = MTIMER_CMP_SIZE,
+	.first_hartid = 32,
+	.hart_count = PLATFORM_HART_COUNT,
+	.has_64bit_mmio = TRUE,
 };
 
 #pragma GCC push_options
@@ -217,6 +244,11 @@ static int nxt_final_init(bool cold_boot)
 	const char test_print[]  = SCR7_TEST_PRINT;    
 	ns_memcpy(ring->log, test_print, sizeof(test_print));
 	ring->head = sizeof(test_print);
+	//TEST TIMER
+#if MTIMER_MMODE_DEBUG_TEST
+	platform_timer_test();
+#endif
+
 	//test print to console
 	sbi_puts("******************Hello from ABRA!*************************\n");
 	return 0;
@@ -253,9 +285,18 @@ static int platform_ipi_init(bool cold_boot)
 /*
  * Initialize platform timer for current HART.
  */
-static int platform_timer_init(bool cold_boot)
+static int nxt_timer_init(bool cold_boot)
 {
-	return 0;
+	int ret;
+
+	/* Example if the generic ACLINT driver is used */
+	if (cold_boot) {
+		ret = aclint_mtimer_cold_init(&mtimer, NULL);
+		if (ret)
+			return ret;
+	}
+
+	return aclint_mtimer_warm_init();
 }
 
 /*
@@ -268,8 +309,9 @@ const struct sbi_platform_operations platform_ops = {
 	.console_init	= nxt_console_init,
 	.irqchip_init		= platform_irqchip_init,
 	.ipi_init		= platform_ipi_init,
-	.timer_init		= platform_timer_init,
+	.timer_init		= nxt_timer_init,
 };
+
 const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,
 	.platform_version	= SBI_PLATFORM_VERSION(0x07, 0x00),
@@ -307,3 +349,22 @@ static void *ns_memcpy(void *dst, const void *src, uint32_t count)
 
     return dst;
 }
+
+#if MTIMER_MMODE_DEBUG_TEST
+static void platform_timer_test()
+{
+	uint64_t time = 0;
+    const struct sbi_timer_device *tdev;
+
+	// timer test 
+    tdev = sbi_timer_get_device();
+	time = sbi_timer_value();
+    tdev->timer_event_start(1000);
+	sbi_printf("%s: Timer test, start mtimer_time: %lx, core_time: %lx\n", __func__, tdev->timer_value(),time);
+	while (tdev->timer_value() <= 1000);
+	// sbi_timer_delay_loop(1000, 50000000, NULL,NULL);
+    tdev->timer_event_stop();
+	time = sbi_timer_value();
+	sbi_printf("%s: Timer test, start mtimer_time: %lx, core_time: %lx\n", __func__, tdev->timer_value(),time);
+}
+#endif

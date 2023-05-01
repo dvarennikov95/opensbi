@@ -1,4 +1,5 @@
 config PLATFORM_NEXTSILICON_PCORE_SCR7_GEN1
 	bool
+	select TIMER_MTIMER
 	select SERIAL_UART8250
 	default y

@@ -127,7 +127,7 @@ int uart8250_init(unsigned long base, u32 in_freq, u32 baudrate, u32 reg_shift,
 	/* Clear line status */
 	get_reg(UART_LSR_OFFSET);
 	/* Read receive buffer */
-	get_reg(UART_RBR_OFFSET);
+	uart8250_getc();
 	/* Set scratchpad */
 	set_reg(UART_SCR_OFFSET, 0x00);
 

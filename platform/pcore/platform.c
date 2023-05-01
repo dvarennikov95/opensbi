@@ -49,6 +49,10 @@
 /* SRAM (SHMEM) */
 #define SHMEM_REGION_ADDR  		(0xFFFF8FFFF8000000ULL) // Shared memory (4 KB)
 #define SHMEM_REGION_MASK 		(0xFFFFFFFFFFFFF000ULL) 
+#define SHMEM_REGION_SIZE  		(0x200000)
+#define SHMEM_REGION_BANKSIZE   (0x80000)
+#define SHMEM_REGION_FLAGS      (SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE | SBI_DOMAIN_MEMREGION_EXECUTABLE)
+
 // MPU section
 #define CSR_MPU_SELECT 			(0xBC4)
 #define CSR_MPU_CONTROL 		(0xBC5)
@@ -85,6 +89,12 @@
 #define SCR_MPU_CTRL_ALL            (SCR_MPU_CTRL_MA | SCR_MPU_CTRL_SA | SCR_MPU_CTRL_UA)
 
 #define FIRST_UNUSED_MPU_INDEX 		(7)
+static const struct {
+	unsigned long base, size, align, flags;
+} platform_memory_regions[] = {
+	{ SHMEM_REGION_ADDR, SHMEM_REGION_SIZE, SHMEM_REGION_BANKSIZE, SHMEM_REGION_FLAGS},
+};
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 /*
@@ -154,8 +164,20 @@ static int nxt_very_early_init()
 /*
  * Platform early initialization.
  */
-static int platform_early_init(bool cold_boot)
+static int nxt_early_init(bool cold_boot)
 {
+	int ret = 0;
+
+	for (unsigned int i = 0; i < array_size(platform_memory_regions); i++)
+    {
+        ret = sbi_domain_root_add_memrange(platform_memory_regions[i].base,
+									       platform_memory_regions[i].size,
+									       platform_memory_regions[i].align,
+									       platform_memory_regions[i].flags);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -204,7 +226,7 @@ static int platform_timer_init(bool cold_boot)
  */
 const struct sbi_platform_operations platform_ops = {
 	.nascent_init   = nxt_very_early_init,
-	.early_init		= platform_early_init,
+	.early_init		= nxt_early_init,
 	.final_init		= platform_final_init,
 	.console_init		= platform_console_init,
 	.irqchip_init		= platform_irqchip_init,

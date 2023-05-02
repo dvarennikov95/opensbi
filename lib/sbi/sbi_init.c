@@ -27,6 +27,7 @@
 #include <sbi/sbi_tlb.h>
 #include <sbi/sbi_version.h>
 
+#define GDB_DEBUG_MMODE 1  //dont switch to smode if you want to debug mmode
 #define BANNER                                              \
 	"   ____                    _____ ____ _____\n"     \
 	"  / __ \\                  / ____|  _ \\_   _|\n"  \
@@ -351,8 +352,13 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	(*init_count)++;
 
 	sbi_hsm_prepare_next_jump(scratch, hartid);
+	
+#if GDB_DEBUG_MMODE
+	sbi_hart_hang();
+#else
 	sbi_hart_switch_mode(hartid, scratch->next_arg1, scratch->next_addr,
 			     scratch->next_mode, FALSE);
+#endif
 }
 
 static void init_warm_startup(struct sbi_scratch *scratch, u32 hartid)

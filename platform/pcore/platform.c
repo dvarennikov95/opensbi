@@ -36,6 +36,9 @@
 /* Platform-level interrupt controller PLIC */ 
 #define PLIC_REGION_ADDR  	   	(0xFFFF8FFFC0000000ULL)
 #define PLIC_REGION_CFG_MASK    (0xFFFFFFFFFF000000ULL)
+#define PLIC_REGION_SIZE 		(0x1000000)
+#define PLIC_REGION_FLAGS 		(SBI_DOMAIN_MEMREGION_READABLE | SBI_DOMAIN_MEMREGION_WRITEABLE | SBI_DOMAIN_MEMREGION_MMIO)
+#define PLIC_NUM_SOURCES 		(31)
 
 /* APB Subsystem Master Bridge and Cluster Control, non cacheable */
 #define NC_REGION_ADDR          (0xFFFF8FFFE0000000ULL)
@@ -133,6 +136,7 @@ static const struct {
 } platform_memory_regions[] = {
 	{ SHMEM_REGION_ADDR, SHMEM_REGION_SIZE, SHMEM_REGION_BANKSIZE, SHMEM_REGION_FLAGS},
     { UART1_REGION_BASE_ADDR, UART1_REGION_SIZE, UART1_REGION_SIZE, UART1_REGION_FLAGS},
+	{ PLIC_REGION_ADDR, PLIC_REGION_SIZE, PLIC_REGION_SIZE, PLIC_REGION_FLAGS},
 };
 
 static struct aclint_mtimer_data mtimer = {
@@ -144,6 +148,11 @@ static struct aclint_mtimer_data mtimer = {
 	.first_hartid = 32,
 	.hart_count = PLATFORM_HART_COUNT,
 	.has_64bit_mmio = TRUE,
+};
+
+static const struct plic_data plic = {
+	.addr 		= PLIC_REGION_ADDR,
+	.num_src	= PLIC_NUM_SOURCES,
 };
 
 #pragma GCC push_options
@@ -271,7 +280,16 @@ static int nxt_console_init(void)
  */
 static int platform_irqchip_init(bool cold_boot)
 {
-	return 0;
+	int ret;
+	u32 hartid = current_hartid();
+
+	if (cold_boot) {
+		ret = plic_cold_irqchip_init(&plic);
+		if (ret)
+			return ret;
+	}
+
+	return plic_warm_irqchip_init(&plic, 2 * hartid, 2 * hartid + 1);
 }
 
 /*

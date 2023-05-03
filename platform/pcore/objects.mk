@@ -19,5 +19,4 @@ else
   FW_PAYLOAD_OFFSET=0x200000
 endif
 # FW_PAYLOAD_PATH=/space2/users/ex-danielv/nextutils/RelWithDebInfo/nextrisc/bin/scr7_boot_test.bin
-# FW_PAYLOAD_ALIGN=0x1000
 FW_PAYLOAD_PATH=/space2/users/ex-danielv/u-boot/u-boot.bin 

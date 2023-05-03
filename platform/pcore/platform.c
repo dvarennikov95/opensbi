@@ -57,7 +57,7 @@ struct platform_log_ring {
 #define CSR_MPU_MASK 			(0xBC7)
 #define CSR_MEM_CTRL_GLOBAL		(0xBD4)
 #define HBM_REGION_ADDR      	(0x000000)
-#define HBM_REGION_CFG_MASK  	(0xFFFFFFFFFFF00000ULL)
+#define HBM_REGION_CFG_MASK  	(0xFFFFFFFF00000000ULL)
 
 #define SCR_MPU_CTRL_VALID          (1 << 0)  // Current entry is enabled
 #define SCR_MPU_CTRL_MR             (1 << 1)  // M-Mode reads are permitted

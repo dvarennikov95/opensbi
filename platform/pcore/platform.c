@@ -13,6 +13,7 @@
 #include <sbi_utils/serial/uart8250.h>
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/timer/aclint_mtimer.h>
+#include <mmu.h>
 
 /*
  * Include these files as needed.
@@ -26,6 +27,8 @@
  * As a w/a start count from 32 to avoid changing orig implementation.
 */
 #define PLATFORM_HART_COUNT 33 // allow boot only for scr7 core 0 (hartid=32)
+
+#define MMU_MMODE_DEBUG_TEST 0
 
 // platform memory regions 
 
@@ -203,7 +206,7 @@ static int nxt_very_early_init()
 	csr_write(CSR_MPU_CONTROL,0);
 	csr_write(CSR_MPU_ADDRESS,(HBM_REGION_ADDR >> 2));
 	csr_write(CSR_MPU_MASK,(HBM_REGION_CFG_MASK >> 2));
-	csr_write(CSR_MPU_CONTROL,(SCR_MPU_CTRL_MT_WEAKLY | SCR_MPU_CTRL_ALL | SCR_MPU_CTRL_VALID));
+	csr_write(CSR_MPU_CONTROL,(SCR_MPU_CTRL_MT_STRONG | SCR_MPU_CTRL_ALL | SCR_MPU_CTRL_VALID));
 
 	// SHMEM region
 	csr_write(CSR_MPU_SELECT,6);
@@ -260,6 +263,9 @@ static int nxt_final_init(bool cold_boot)
 
 	//test print to console
 	sbi_puts("******************Hello from ABRA!*************************\n");
+#if MMU_MMODE_DEBUG_TEST
+	test_mmu();
+#endif
 	return 0;
 }
 
